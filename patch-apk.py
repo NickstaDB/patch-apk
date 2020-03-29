@@ -28,6 +28,12 @@ def main():
 		#Get the APK to patch. Combine app bundles/split APKs into a single APK.
 		apkfile = getTargetAPK(pkgname, apkpaths, tmppath)
 		
+		#Save the APK if requested
+		if args.save_apk is not None:
+			print("Saving a copy of the APK to " + args.save_apk)
+			print("")
+			shutil.copy(apkfile, args.save_apk)
+		
 		#Patch the target APK with objection
 		print("Patching " + apkfile.split(os.sep)[-1] + " with objection.")
 		subprocess.run(["objection", "patchapk", "--skip-resources", "-s", apkfile], stdout=subprocess.DEVNULL)
@@ -82,6 +88,7 @@ def getArgs():
 		description="patch-apk - Pull and patch Android apps for use with objection/frida."
 	)
 	parser.add_argument("--no-enable-user-certs", help="Prevent patch-apk from enabling user-installed certificate support via network security config in the patched APK.", action="store_true")
+	parser.add_argument("--save-apk", help="Save a copy of the APK (or single APK) prior to patching for use with other tools.")
 	parser.add_argument("pkgname", help="The name, or partial name, of the package to patch (e.g. com.foo.bar).")
 	return parser.parse_args()
 
