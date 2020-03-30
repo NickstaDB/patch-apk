@@ -36,7 +36,7 @@ def main():
 		
 		#Patch the target APK with objection
 		print("Patching " + apkfile.split(os.sep)[-1] + " with objection.")
-		subprocess.run(["objection", "patchapk", "--skip-resources", "-s", apkfile], stdout=subprocess.DEVNULL)
+		subprocess.run(["objection", "patchapk", "--skip-resources", "-s", apkfile], stdout=getStdout())
 		os.remove(apkfile)
 		shutil.move(apkfile[:-4] + ".objection.apk", apkfile)
 		print("")
@@ -47,12 +47,12 @@ def main():
 		
 		#Uninstall the original package from the device
 		print("Uninstalling the original package from the device.")
-		subprocess.run(["adb", "uninstall", pkgname], stdout=subprocess.DEVNULL)
+		subprocess.run(["adb", "uninstall", pkgname], stdout=getStdout())
 		print("")
 		
 		#Install the patched APK
 		print("Installing the patched APK to the device.")
-		subprocess.run(["adb", "install", apkfile], stdout=subprocess.DEVNULL)
+		subprocess.run(["adb", "install", apkfile], stdout=getStdout())
 		print("")
 		
 		#Done
@@ -90,8 +90,18 @@ def getArgs():
 	parser.add_argument("--no-enable-user-certs", help="Prevent patch-apk from enabling user-installed certificate support via network security config in the patched APK.", action="store_true")
 	parser.add_argument("--save-apk", help="Save a copy of the APK (or single APK) prior to patching for use with other tools.")
 	parser.add_argument("--disable-styles-hack", help="Disable the styles hack that removes duplicate entries from res/values/styles.xml.", action="store_true")
+	parser.add_argument("--debug-output", help="Enable debug output.", action="store_true")
 	parser.add_argument("pkgname", help="The name, or partial name, of the package to patch (e.g. com.foo.bar).")
 	return parser.parse_args()
+
+####################
+# Get the stdout target for subprocess calls. Set to DEVNULL unless debug output is enabled.
+####################
+def getStdout():
+	if getArgs().debug_output == True:
+		return None
+	else:
+		return subprocess.DEVNULL
 
 ####################
 # Verify the package name - checks whether the target package is installed
@@ -158,7 +168,7 @@ def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack):
 		baseapkname = remotepath.split(os.sep)[-1]
 		localapks.append(os.path.join(tmppath, pkgname + "-" + baseapkname))
 		print("[+] Pulling: " + pkgname + "-" + baseapkname)
-		subprocess.run(["adb", "pull", remotepath, localapks[-1]], stdout=subprocess.DEVNULL)
+		subprocess.run(["adb", "pull", remotepath, localapks[-1]], stdout=getStdout())
 	print("")
 	
 	#Return the target APK path
@@ -183,7 +193,7 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	for apkpath in localapks:
 		print("[+] Extracting: " + apkpath)
 		apkdir = apkpath[:-4]
-		subprocess.run(["apktool", "d", apkpath, "-o", apkdir], stdout=subprocess.DEVNULL)
+		subprocess.run(["apktool", "d", apkpath, "-o", apkdir], stdout=getStdout())
 		
 		#Record the destination paths of all but the base APK
 		if apkpath.endswith("base.apk") == False:
@@ -206,7 +216,7 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	#Rebuild the base APK
 	print("Rebuilding as a single APK.")
 	print("[+] Building APK with apktool.")
-	subprocess.run(["apktool", "b", baseapkdir], stdout=subprocess.DEVNULL)
+	subprocess.run(["apktool", "b", baseapkdir], stdout=getStdout())
 	
 	#Sign the new APK
 	print("[+] Signing new APK.")
@@ -214,7 +224,7 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 			"jarsigner", "-sigalg", "SHA1withRSA", "-digestalg", "SHA1", "-keystore",
 			os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore")),
 			"-storepass", "patch-apk", os.path.join(baseapkdir, "dist", baseapkfilename), "patch-apk-key"],
-		stdout=subprocess.DEVNULL
+		stdout=getStdout()
 	)
 	
 	#Zip align the new APK
@@ -223,7 +233,7 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 			"zipalign", "-f", "4", os.path.join(baseapkdir, "dist", baseapkfilename),
 			os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk")
 		],
-		stdout=subprocess.DEVNULL
+		stdout=getStdout()
 	)
 	shutil.move(os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk"), os.path.join(baseapkdir, "dist", baseapkfilename))
 	print("")
@@ -284,7 +294,7 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 	#        Load these into the lookup tables ready to resolve the real resource names from
 	#        the split APKs in step 2 below.
 	baseXmlTree = xml.etree.ElementTree.parse(os.path.join(baseapkdir, "res", "values", "public.xml"))
-	for el in baseXmlTree.getroot().getchildren():
+	for el in baseXmlTree.getroot():
 		if "name" in el.attrib and "id" in el.attrib:
 			if el.attrib["name"].startswith("APKTOOL_DUMMY_") and el.attrib["name"] not in idToDummyName:
 				idToDummyName[el.attrib["id"]] = el.attrib["name"]
@@ -299,7 +309,7 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 	for splitdir in splitapkpaths:
 		if os.path.exists(os.path.join(splitdir, "res", "values", "public.xml")):
 			tree = xml.etree.ElementTree.parse(os.path.join(splitdir, "res", "values", "public.xml"))
-			for el in tree.getroot().getchildren():
+			for el in tree.getroot():
 				if "name" in el.attrib and "id" in el.attrib:
 					if el.attrib["id"] in idToDummyName:
 						dummyNameToRealName[idToDummyName[el.attrib["id"]]] = el.attrib["name"]
@@ -309,7 +319,7 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 	#Step 3) Update the base APK to replace all APKTOOL_DUMMY_XXX resource names with the true
 	#        resource name.
 	updated = 0
-	for el in baseXmlTree.getroot().getchildren():
+	for el in baseXmlTree.getroot():
 		if "name" in el.attrib and "id" in el.attrib:
 			if el.attrib["name"] in dummyNameToRealName and dummyNameToRealName[el.attrib["name"]] is not None:
 				el.attrib["name"] = dummyNameToRealName[el.attrib["name"]]
@@ -386,7 +396,7 @@ def hackRemoveDuplicateStyleEntries(baseapkdir):
 	tree = xml.etree.ElementTree.parse(os.path.join(baseapkdir, "res", "values", "styles.xml"))
 	for styleEl in tree.getroot().findall("style"):
 		itemNames = []
-		for itemEl in styleEl.getchildren():
+		for itemEl in styleEl:
 			if "name" in itemEl.attrib and itemEl.attrib["name"] in itemNames:
 				dupes.append([styleEl, itemEl])
 			else:
@@ -453,7 +463,7 @@ def enableUserCerts(apkfile):
 		#Extract the APK
 		apkdir = os.path.join(tmppath, apkfile.split(os.sep)[-1][:-4])
 		apkname = apkdir.split(os.sep)[-1] + ".apk"
-		subprocess.run(["apktool", "d", apkfile, "-o", apkdir], stdout=subprocess.DEVNULL)
+		subprocess.run(["apktool", "d", apkfile, "-o", apkdir], stdout=getStdout())
 		
 		#Load AndroidManifest.xml and check for or create the networkSecurityConfig attribute
 		tree = xml.etree.ElementTree.parse(os.path.join(apkdir, "AndroidManifest.xml"))
@@ -471,17 +481,17 @@ def enableUserCerts(apkfile):
 		fh.close()
 		
 		#Rebuild and sign the APK
-		subprocess.run(["apktool", "b", apkdir], stdout=subprocess.DEVNULL)
+		subprocess.run(["apktool", "b", apkdir], stdout=getStdout())
 		subprocess.run([
 				"jarsigner", "-sigalg", "SHA1withRSA", "-digestalg", "SHA1", "-keystore",
 				os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore")),
 				"-storepass", "patch-apk", os.path.join(apkdir, "dist", apkname), "patch-apk-key"],
-			stdout=subprocess.DEVNULL
+			stdout=getStdout()
 		)
 		
 		#Zip align the new APK
 		os.remove(apkfile)
-		subprocess.run(["zipalign", "4", os.path.join(apkdir, "dist", apkname), apkfile], stdout=subprocess.DEVNULL)
+		subprocess.run(["zipalign", "4", os.path.join(apkdir, "dist", apkname), apkfile], stdout=getStdout())
 	print("")
 
 ####################
