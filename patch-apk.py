@@ -283,7 +283,7 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 		if "name" in el.attrib and "id" in el.attrib:
 			if el.attrib["name"].startswith("APKTOOL_DUMMY_") and el.attrib["name"] not in idToDummyName:
 				idToDummyName[el.attrib["id"]] = el.attrib["name"]
-				dummyNameToRealName[el.attrib["name"]] = ""
+				dummyNameToRealName[el.attrib["name"]] = None
 	print("[+] Resolving " + str(len(idToDummyName)) + " resource identifiers.")
 	
 	#Step 2) Parse the public.xml file from each split APK in search of resource IDs matching
@@ -306,7 +306,7 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 	updated = 0
 	for el in baseXmlTree.getroot().getchildren():
 		if "name" in el.attrib and "id" in el.attrib:
-			if el.attrib["name"] in dummyNameToRealName:
+			if el.attrib["name"] in dummyNameToRealName and dummyNameToRealName[el.attrib["name"]] is not None:
 				el.attrib["name"] = dummyNameToRealName[el.attrib["name"]]
 				updated += 1
 	baseXmlTree.write(os.path.join(baseapkdir, "res", "values", "public.xml"), encoding="utf-8", xml_declaration=True)
@@ -333,18 +333,18 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 					#Check for references to APKTOOL_DUMMY_XXX resources in attributes of this element
 					for attr in el.attrib:
 						val = el.attrib[attr]
-						if val.startswith("@") and "/" in val and val.split("/")[1].startswith("APKTOOL_DUMMY_"):
+						if val.startswith("@") and "/" in val and val.split("/")[1].startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val.split("/")[1]] is not None:
 							el.attrib[attr] = val.split("/")[0] + "/" + dummyNameToRealName[val.split("/")[1]]
 							updated += 1
 							changed = True
-						elif val.startswith("APKTOOL_DUMMY_"):
+						elif val.startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val] is not None:
 							el.attrib[attr] = dummyNameToRealName[val]
 							updated += 1
 							changed = True
 					
 					#Check for references to APKTOOL_DUMMY_XXX resources in the element text
 					val = el.text
-					if val is not None and val.startswith("@") and "/" in val and val.split("/")[1].startswith("APKTOOL_DUMMY_"):
+					if val is not None and val.startswith("@") and "/" in val and val.split("/")[1].startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val.split("/")[1]] is not None:
 						el.text = val.split("/")[0] + "/" + dummyNameToRealName[val.split("/")[1]]
 						updated += 1
 						changed = True
