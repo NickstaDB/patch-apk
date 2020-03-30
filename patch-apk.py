@@ -26,7 +26,7 @@ def main():
 	#Create a temp directory to work from
 	with tempfile.TemporaryDirectory() as tmppath:
 		#Get the APK to patch. Combine app bundles/split APKs into a single APK.
-		apkfile = getTargetAPK(pkgname, apkpaths, tmppath)
+		apkfile = getTargetAPK(pkgname, apkpaths, tmppath, args.disable_styles_hack)
 		
 		#Save the APK if requested
 		if args.save_apk is not None:
@@ -89,6 +89,7 @@ def getArgs():
 	)
 	parser.add_argument("--no-enable-user-certs", help="Prevent patch-apk from enabling user-installed certificate support via network security config in the patched APK.", action="store_true")
 	parser.add_argument("--save-apk", help="Save a copy of the APK (or single APK) prior to patching for use with other tools.")
+	parser.add_argument("--disable-styles-hack", help="Disable the styles hack that removes duplicate entries from res/values/styles.xml.", action="store_true")
 	parser.add_argument("pkgname", help="The name, or partial name, of the package to patch (e.g. com.foo.bar).")
 	return parser.parse_args()
 
@@ -149,7 +150,7 @@ def getAPKPathsForPackage(pkgname):
 # Pull the APK file(s) for the package and return the local file path to work with.
 # If the package is an app bundle/split APK, combine the APKs into a single APK.
 ####################
-def getTargetAPK(pkgname, apkpaths, tmppath):
+def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack):
 	#Pull the APKs from the device
 	print("Pulling APK file(s) from device.")
 	localapks = []
@@ -165,12 +166,12 @@ def getTargetAPK(pkgname, apkpaths, tmppath):
 		return localapks[0]
 	else:
 		#Combine split APKs
-		return combineSplitAPKs(pkgname, localapks, tmppath)
+		return combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack)
 
 ####################
 # Combine app bundles/split APKs into a single APK for patching.
 ####################
-def combineSplitAPKs(pkgname, localapks, tmppath):
+def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	print("App bundle/split APK detected, rebuilding as a single APK.")
 	print("")
 	
@@ -194,6 +195,10 @@ def combineSplitAPKs(pkgname, localapks, tmppath):
 	
 	#Fix public resource identifiers
 	fixPublicResourceIDs(baseapkdir, splitapkpaths)
+	
+	#Hack: Delete duplicate style resource entries.
+	if disableStylesHack == False:
+		hackRemoveDuplicateStyleEntries(baseapkdir)
 	
 	#Disable APK splitting in the base AndroidManifest.xml file
 	disableApkSplitting(baseapkdir)
@@ -353,6 +358,48 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 				if changed == True:
 					tree.write(os.path.join(root, f), encoding="utf-8", xml_declaration=True)
 	print("[+] Updated " + str(updated) + " references to dummy resource names in the base APK.")
+	print("")
+
+####################
+# Hack to remove duplicate style resource entries before rebuilding.
+# 
+# Possibly a bug in apktool affecting the Uber app (com.ubercab)
+# -> res/values/styles.xml has <style> elements where two child <item> elements had the same name e.g.
+#        <item name="borderWarning">@color/ub__ui_core_v2_orange200</item>
+#        <item name="borderWarning">@color/ub__ui_core_v2_orange400</item>
+# --> Doing an "apktool d com.ubercab.apk" then "apktool b com.ubercab" fails, so not a bug with patch-apk.py.
+# --> See: https://github.com/iBotPeaches/Apktool/issues/2240
+# 
+# This hack parses res/values/styles.xml, finds all offending elements, removes them, then saves the result.
+####################
+def hackRemoveDuplicateStyleEntries(baseapkdir):
+	#Bail if there is no styles.xml
+	if os.path.exists(os.path.join(baseapkdir, "res", "values", "styles.xml")) == False:
+		return
+	print("Found styles.xml in the base APK, checking for duplicate <style> -> <item> elements and removing.")
+	print("[~] Warning: this is a complete hack and may impact the visuals of the app, disable with --disable-styles-hack.")
+	
+	#Duplicates
+	dupes = []
+	
+	#Parse styles.xml and find all <item> elements with duplicate names
+	tree = xml.etree.ElementTree.parse(os.path.join(baseapkdir, "res", "values", "styles.xml"))
+	for styleEl in tree.getroot().findall("style"):
+		itemNames = []
+		for itemEl in styleEl.getchildren():
+			if "name" in itemEl.attrib and itemEl.attrib["name"] in itemNames:
+				dupes.append([styleEl, itemEl])
+			else:
+				itemNames.append(itemEl.attrib["name"])
+	
+	#Delete all duplicates from the tree
+	for dupe in dupes:
+		dupe[0].remove(dupe[1])
+	
+	#Save the result if any duplicates were found and removed
+	if len(dupes) > 0:
+		tree.write(os.path.join(baseapkdir, "res", "values", "styles.xml"), encoding="utf-8", xml_declaration=True)
+		print("[+] Removed " + str(len(dupes)) + " duplicate entries from styles.xml.")
 	print("")
 
 ####################

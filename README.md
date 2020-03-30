@@ -11,6 +11,7 @@ An APK patcher, for use with [objection](https://github.com/sensepost/objection)
 
 ### Changelog ###
 
+* **30th March 2020:** Fixed a bug where dummy resource IDs were assumed to all have true names. Added a hack to resolve an issue with duplicate entries in res/values/styles.xml after decompiling with apktool.
 * **29th March 2020:** Added `--save-apk` parameter to save a copy of the unpatched single APK for use with other tools.
 * **27th March 2020:** Initial release supporting split APKs and the `--no-enable-user-certs` flag.
 
