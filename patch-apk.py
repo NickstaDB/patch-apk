@@ -71,6 +71,7 @@ def main():
 # Check that required dependencies are present:
 # -> Tools used
 # -> Android device connected
+# -> Keystore
 ####################
 def checkDependencies():
 	deps = ["adb", "apktool", "jarsigner", "objection", "zipalign"]
@@ -90,6 +91,11 @@ def checkDependencies():
 	deviceOut = proc.stdout.decode("utf-8")
 	if len(deviceOut.strip().split(os.linesep)) == 1:
 		print("Error, no Android device connected (\"adb devices\"), connect a device first.")
+		sys.exit(1)
+	
+	#Check that the included keystore exists
+	if os.path.exists(os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore"))) == False:
+		print("Error, the keystore was not found at " + os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore")) + ", please clone the repository or get the keystore file and place it at this location.")
 		sys.exit(1)
 
 ####################
