@@ -36,7 +36,10 @@ def main():
 		
 		#Patch the target APK with objection
 		print("Patching " + apkfile.split(os.sep)[-1] + " with objection.")
-		subprocess.run(["objection", "patchapk", "--skip-resources", "-s", apkfile], stdout=getStdout())
+		ret = subprocess.run(["objection", "patchapk", "--skip-resources", "-s", apkfile], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'objection patchapk --skip-resources -s " + apkfile + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
 		os.remove(apkfile)
 		shutil.move(apkfile[:-4] + ".objection.apk", apkfile)
 		print("")
@@ -47,12 +50,18 @@ def main():
 		
 		#Uninstall the original package from the device
 		print("Uninstalling the original package from the device.")
-		subprocess.run(["adb", "uninstall", pkgname], stdout=getStdout())
+		ret = subprocess.run(["adb", "uninstall", pkgname], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'adb uninstall " + pkgname + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
 		print("")
 		
 		#Install the patched APK
 		print("Installing the patched APK to the device.")
-		subprocess.run(["adb", "install", apkfile], stdout=getStdout())
+		ret = subprocess.run(["adb", "install", apkfile], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'adb install " + apkfile + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
 		print("")
 		
 		#Done
@@ -75,6 +84,9 @@ def checkDependencies():
 	
 	#Verify that an Android device is connected
 	proc = subprocess.run(["adb", "devices"], stdout=subprocess.PIPE)
+	if proc.returncode != 0:
+		print("Error: Failed to run 'adb devices'.")
+		sys.exit(1)
 	deviceOut = proc.stdout.decode("utf-8")
 	if len(deviceOut.strip().split(os.linesep)) == 1:
 		print("Error, no Android device connected (\"adb devices\"), connect a device first.")
@@ -112,6 +124,9 @@ def verifyPackageName(pkgname):
 	#Get a list of installed packages matching the given name
 	packages = []
 	proc = subprocess.run(["adb", "shell", "pm", "list", "packages"], stdout=subprocess.PIPE)
+	if proc.returncode != 0:
+		print("Error: Failed to run 'adb shell pm list packages'.")
+		sys.exit(1)
 	out = proc.stdout.decode("utf-8")
 	for line in out.split(os.linesep):
 		if line.startswith("package:"):
@@ -148,6 +163,9 @@ def getAPKPathsForPackage(pkgname):
 	print("Getting APK path(s) for package: " + pkgname)
 	paths = []
 	proc = subprocess.run(["adb", "shell", "pm", "path", pkgname], stdout=subprocess.PIPE)
+	if proc.returncode != 0:
+		print("Error: Failed to run 'adb shell pm path " + pkgname + "'.")
+		sys.exit(1)
 	out = proc.stdout.decode("utf-8")
 	for line in out.split(os.linesep):
 		if line.startswith("package:"):
@@ -168,7 +186,10 @@ def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack):
 		baseapkname = remotepath.split(os.sep)[-1]
 		localapks.append(os.path.join(tmppath, pkgname + "-" + baseapkname))
 		print("[+] Pulling: " + pkgname + "-" + baseapkname)
-		subprocess.run(["adb", "pull", remotepath, localapks[-1]], stdout=getStdout())
+		ret = subprocess.run(["adb", "pull", remotepath, localapks[-1]], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'adb pull " + remotepath + " " + localapks[-1] + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
 	print("")
 	
 	#Return the target APK path
@@ -193,7 +214,10 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	for apkpath in localapks:
 		print("[+] Extracting: " + apkpath)
 		apkdir = apkpath[:-4]
-		subprocess.run(["apktool", "d", apkpath, "-o", apkdir], stdout=getStdout())
+		ret = subprocess.run(["apktool", "d", apkpath, "-o", apkdir], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'apktool d " + apkpath + " -o " + apkdir + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
 		
 		#Record the destination paths of all but the base APK
 		if apkpath.endswith("base.apk") == False:
@@ -216,25 +240,38 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	#Rebuild the base APK
 	print("Rebuilding as a single APK.")
 	print("[+] Building APK with apktool.")
-	subprocess.run(["apktool", "b", baseapkdir], stdout=getStdout())
+	ret = subprocess.run(["apktool", "b", baseapkdir], stdout=getStdout())
+	if ret.returncode != 0:
+		print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
+		sys.exit(1)
 	
 	#Sign the new APK
 	print("[+] Signing new APK.")
-	subprocess.run([
+	ret = subprocess.run([
 			"jarsigner", "-sigalg", "SHA1withRSA", "-digestalg", "SHA1", "-keystore",
 			os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore")),
 			"-storepass", "patch-apk", os.path.join(baseapkdir, "dist", baseapkfilename), "patch-apk-key"],
 		stdout=getStdout()
 	)
+	if ret.returncode != 0:
+		print("Error: Failed to run 'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore " +
+			os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore")) +
+			"-storepass patch-apk " + os.path.join(baseapkdir, "dist", baseapkfilename) + " patch-apk-key'.\nRun with --debug-output for more information.")
+		sys.exit(1)
+
 	
 	#Zip align the new APK
 	print("[+] Zip aligning new APK.")
-	subprocess.run([
+	ret = subprocess.run([
 			"zipalign", "-f", "4", os.path.join(baseapkdir, "dist", baseapkfilename),
 			os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk")
 		],
 		stdout=getStdout()
 	)
+	if ret.returncode != 0:
+		print("Error: Failed to run 'zipalign -f 4 " + os.path.join(baseapkdir, "dist", baseapkfilename) +
+			" " + os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk") + "'.\nRun with --debug-output for more information.")
+		sys.exit(1)
 	shutil.move(os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk"), os.path.join(baseapkdir, "dist", baseapkfilename))
 	print("")
 	
@@ -463,7 +500,10 @@ def enableUserCerts(apkfile):
 		#Extract the APK
 		apkdir = os.path.join(tmppath, apkfile.split(os.sep)[-1][:-4])
 		apkname = apkdir.split(os.sep)[-1] + ".apk"
-		subprocess.run(["apktool", "d", apkfile, "-o", apkdir], stdout=getStdout())
+		ret = subprocess.run(["apktool", "d", apkfile, "-o", apkdir], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'apktool d " + apkfile + " -o " + apkdir + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
 		
 		#Load AndroidManifest.xml and check for or create the networkSecurityConfig attribute
 		tree = xml.etree.ElementTree.parse(os.path.join(apkdir, "AndroidManifest.xml"))
@@ -481,17 +521,28 @@ def enableUserCerts(apkfile):
 		fh.close()
 		
 		#Rebuild and sign the APK
-		subprocess.run(["apktool", "b", apkdir], stdout=getStdout())
-		subprocess.run([
+		ret = subprocess.run(["apktool", "b", apkdir], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'apktool b " + apkdir + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
+		ret = subprocess.run([
 				"jarsigner", "-sigalg", "SHA1withRSA", "-digestalg", "SHA1", "-keystore",
 				os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore")),
 				"-storepass", "patch-apk", os.path.join(apkdir, "dist", apkname), "patch-apk-key"],
 			stdout=getStdout()
 		)
+		if ret.returncode != 0:
+			print("Error: Failed to run 'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore " +
+				os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore")) +
+				"-storepass patch-apk " + os.path.join(apkdir, "dist", apkname) + "patch-apk-key'.\nRun with --debug-output for more information.")
+			sys.exit(1)
 		
 		#Zip align the new APK
 		os.remove(apkfile)
-		subprocess.run(["zipalign", "4", os.path.join(apkdir, "dist", apkname), apkfile], stdout=getStdout())
+		ret = subprocess.run(["zipalign", "4", os.path.join(apkdir, "dist", apkname), apkfile], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'zipalign 4 " + os.path.join(apkdir, "dist", apkname) + " " + apkfile + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
 	print("")
 
 ####################
@@ -499,3 +550,4 @@ def enableUserCerts(apkfile):
 ####################
 if __name__ == "__main__":
 	main()
+
