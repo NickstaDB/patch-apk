@@ -523,7 +523,7 @@ def enableUserCerts(apkfile):
 		
 		#Create a network security config file
 		fh = open(os.path.join(apkdir, "res", "xml", "network_security_config.xml"), "wb")
-		fh.write("<?xml version=\"1.0\" encoding=\"utf-8\" ?><network-security-config><base-config><trust-anchors><certificates src=\"user\" /></trust-anchors></base-config></network-security-config>".encode("utf-8"))
+		fh.write("<?xml version=\"1.0\" encoding=\"utf-8\" ?><network-security-config><base-config><trust-anchors><certificates src=\"system\" /><certificates src=\"user\" /></trust-anchors></base-config></network-security-config>".encode("utf-8"))
 		fh.close()
 		
 		#Rebuild and sign the APK
