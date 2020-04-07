@@ -189,7 +189,7 @@ def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack):
 	print("Pulling APK file(s) from device.")
 	localapks = []
 	for remotepath in apkpaths:
-		baseapkname = remotepath.split(os.sep)[-1]
+		baseapkname = remotepath.split('/')[-1]
 		localapks.append(os.path.join(tmppath, pkgname + "-" + baseapkname))
 		print("[+] Pulling: " + pkgname + "-" + baseapkname)
 		ret = subprocess.run(["adb", "pull", remotepath, localapks[-1]], stdout=getStdout())
