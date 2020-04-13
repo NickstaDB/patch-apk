@@ -102,15 +102,30 @@ def checkDependencies():
 # Grab command line parameters
 ####################
 def getArgs():
-	parser = argparse.ArgumentParser(
-		description="patch-apk - Pull and patch Android apps for use with objection/frida."
-	)
-	parser.add_argument("--no-enable-user-certs", help="Prevent patch-apk from enabling user-installed certificate support via network security config in the patched APK.", action="store_true")
-	parser.add_argument("--save-apk", help="Save a copy of the APK (or single APK) prior to patching for use with other tools.")
-	parser.add_argument("--disable-styles-hack", help="Disable the styles hack that removes duplicate entries from res/values/styles.xml.", action="store_true")
-	parser.add_argument("--debug-output", help="Enable debug output.", action="store_true")
-	parser.add_argument("pkgname", help="The name, or partial name, of the package to patch (e.g. com.foo.bar).")
-	return parser.parse_args()
+	#Only parse args once
+	if not hasattr(getArgs, "parsed_args"):
+		#Parse the command lin
+		parser = argparse.ArgumentParser(
+			description="patch-apk - Pull and patch Android apps for use with objection/frida."
+		)
+		parser.add_argument("--no-enable-user-certs", help="Prevent patch-apk from enabling user-installed certificate support via network security config in the patched APK.", action="store_true")
+		parser.add_argument("--save-apk", help="Save a copy of the APK (or single APK) prior to patching for use with other tools.")
+		parser.add_argument("--disable-styles-hack", help="Disable the styles hack that removes duplicate entries from res/values/styles.xml.", action="store_true")
+		parser.add_argument("--debug-output", help="Enable debug output.", action="store_true")
+		parser.add_argument("pkgname", help="The name, or partial name, of the package to patch (e.g. com.foo.bar).")
+		
+		#Store the parsed args
+		getArgs.parsed_args = parser.parse_args()
+	
+	#Return the parsed command line args
+	return getArgs.parsed_args
+
+####################
+# Debug print
+####################
+def dbgPrint(msg):
+	if getArgs().debug_output == True:
+		print(msg)
 
 ####################
 # Get the stdout target for subprocess calls. Set to DEVNULL unless debug output is enabled.
@@ -228,6 +243,10 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 		#Record the destination paths of all but the base APK
 		if apkpath.endswith("base.apk") == False:
 			splitapkpaths.append(apkdir)
+		
+		#Check for ProGuard/AndResGuard - this might b0rk decompile/recompile
+		if detectProGuard(apkdir):
+			print("\n[~] WARNING: Detected ProGuard/AndResGuard, decompile/recompile may not succeed.\n")
 	print("")
 	
 	#Walk the extracted APK directories and copy files and directories to the base APK
@@ -285,6 +304,20 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	return os.path.join(baseapkdir, "dist", baseapkfilename)
 
 ####################
+# Attempt to detect ProGuard/AndResGuard.
+####################
+def detectProGuard(extractedPath):
+	if os.path.exists(os.path.join(extractedPath, "original", "META-INF", "proguard")) == True:
+		return True
+	if os.path.exists(os.path.join(extractedPath, "original", "META-INF", "MANIFEST.MF")) == True:
+		fh = open(os.path.join(extractedPath, "original", "META-INF", "MANIFEST.MF"))
+		d = fh.read()
+		fh.close()
+		if "proguard" in d.lower():
+			return True
+	return False
+
+####################
 # Copy files and directories from split APKs into the base APK directory.
 ####################
 def copySplitApkFiles(baseapkdir, splitapkpaths):
@@ -298,7 +331,7 @@ def copySplitApkFiles(baseapkdir, splitapkpaths):
 					#Translate directory path to base APK path and create the directory if it doesn't exist
 					p = baseapkdir + os.path.join(root, d)[len(apkdir):]
 					if os.path.exists(p) == False:
-						print("[+] Creating directory in base APK: " + p[len(baseapkdir):])
+						dbgPrint("[+] Creating directory in base APK: " + p[len(baseapkdir):])
 						os.mkdir(p)
 				
 				#Copy files into the base APK
@@ -313,7 +346,7 @@ def copySplitApkFiles(baseapkdir, splitapkpaths):
 					#Copy files into the base APK, except for XML files in the res directory
 					if f.lower().endswith(".xml") and p.startswith(os.path.join(baseapkdir, "res")):
 						continue
-					print("[+] Moving file to base APK: " + p[len(baseapkdir):])
+					dbgPrint("[+] Moving file to base APK: " + p[len(baseapkdir):])
 					shutil.move(os.path.join(root, f), p)
 	print("")
 
@@ -376,40 +409,44 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 	for (root, dirs, files) in os.walk(os.path.join(baseapkdir, "res")):
 		for f in files:
 			if f.lower().endswith(".xml"):
-				#Load the XML
-				tree = xml.etree.ElementTree.parse(os.path.join(root, f))
-				
-				#Register the namespaces and get the prefix for the "android" namespace
-				namespaces = dict([node for _,node in xml.etree.ElementTree.iterparse(os.path.join(baseapkdir, "AndroidManifest.xml"), events=["start-ns"])])
-				for ns in namespaces:
-					xml.etree.ElementTree.register_namespace(ns, namespaces[ns])
-				ns = "{" + namespaces["android"] + "}"
-				
-				#Update references to APKTOOL_DUMMY_XXX resources
-				changed = False
-				for el in tree.iter():
-					#Check for references to APKTOOL_DUMMY_XXX resources in attributes of this element
-					for attr in el.attrib:
-						val = el.attrib[attr]
-						if val.startswith("@") and "/" in val and val.split("/")[1].startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val.split("/")[1]] is not None:
-							el.attrib[attr] = val.split("/")[0] + "/" + dummyNameToRealName[val.split("/")[1]]
-							updated += 1
-							changed = True
-						elif val.startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val] is not None:
-							el.attrib[attr] = dummyNameToRealName[val]
+				try:
+					#Load the XML
+					dbgPrint("[~] Parsing " + os.path.join(root, f))
+					tree = xml.etree.ElementTree.parse(os.path.join(root, f))
+					
+					#Register the namespaces and get the prefix for the "android" namespace
+					namespaces = dict([node for _,node in xml.etree.ElementTree.iterparse(os.path.join(baseapkdir, "AndroidManifest.xml"), events=["start-ns"])])
+					for ns in namespaces:
+						xml.etree.ElementTree.register_namespace(ns, namespaces[ns])
+					ns = "{" + namespaces["android"] + "}"
+					
+					#Update references to APKTOOL_DUMMY_XXX resources
+					changed = False
+					for el in tree.iter():
+						#Check for references to APKTOOL_DUMMY_XXX resources in attributes of this element
+						for attr in el.attrib:
+							val = el.attrib[attr]
+							if val.startswith("@") and "/" in val and val.split("/")[1].startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val.split("/")[1]] is not None:
+								el.attrib[attr] = val.split("/")[0] + "/" + dummyNameToRealName[val.split("/")[1]]
+								updated += 1
+								changed = True
+							elif val.startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val] is not None:
+								el.attrib[attr] = dummyNameToRealName[val]
+								updated += 1
+								changed = True
+						
+						#Check for references to APKTOOL_DUMMY_XXX resources in the element text
+						val = el.text
+						if val is not None and val.startswith("@") and "/" in val and val.split("/")[1].startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val.split("/")[1]] is not None:
+							el.text = val.split("/")[0] + "/" + dummyNameToRealName[val.split("/")[1]]
 							updated += 1
 							changed = True
 					
-					#Check for references to APKTOOL_DUMMY_XXX resources in the element text
-					val = el.text
-					if val is not None and val.startswith("@") and "/" in val and val.split("/")[1].startswith("APKTOOL_DUMMY_") and dummyNameToRealName[val.split("/")[1]] is not None:
-						el.text = val.split("/")[0] + "/" + dummyNameToRealName[val.split("/")[1]]
-						updated += 1
-						changed = True
-				
-				#Save the file if it was updated
-				if changed == True:
-					tree.write(os.path.join(root, f), encoding="utf-8", xml_declaration=True)
+					#Save the file if it was updated
+					if changed == True:
+						tree.write(os.path.join(root, f), encoding="utf-8", xml_declaration=True)
+				except xml.etree.ElementTree.ParseError:
+					print("[-] XML parse error in " + os.path.join(root, f) + ", skipping.")
 	print("[+] Updated " + str(updated) + " references to dummy resource names in the base APK.")
 	print("")
 
