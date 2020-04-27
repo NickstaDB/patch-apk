@@ -104,7 +104,7 @@ def checkDependencies():
 def getArgs():
 	#Only parse args once
 	if not hasattr(getArgs, "parsed_args"):
-		#Parse the command lin
+		#Parse the command line
 		parser = argparse.ArgumentParser(
 			description="patch-apk - Pull and patch Android apps for use with objection/frida."
 		)
