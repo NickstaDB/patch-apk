@@ -264,11 +264,19 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	
 	#Rebuild the base APK
 	print("Rebuilding as a single APK.")
-	print("[+] Building APK with apktool.")
-	ret = subprocess.run(["apktool", "b", baseapkdir], stdout=getStdout())
-	if ret.returncode != 0:
-		print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
-		sys.exit(1)
+	if os.path.exists(os.path.join(baseapkdir, "res", "navigation")) == True:
+		print("[+] Found res/navigation directory, rebuilding with 'apktool --use-aapt2'.")
+		ret = subprocess.run(["apktool", "--use-aapt2", "b", baseapkdir], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
+	else:
+		print("[+] Building APK with apktool.")
+		ret = subprocess.run(["apktool", "b", baseapkdir], stdout=getStdout())
+		if ret.returncode != 0:
+			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
+	
 	
 	#Sign the new APK
 	print("[+] Signing new APK.")
