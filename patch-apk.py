@@ -137,6 +137,23 @@ def getStdout():
 		return subprocess.DEVNULL
 
 ####################
+# Wrapper to run apktool platform-independently, complete with a dirty hack to fix apktool's dirty hack.
+####################
+def runApkTool(params):
+	if os.name == "nt":
+		args = ["apktool.bat"]
+		args.extend(params)
+		
+		#apktool.bat has a dirty hack that execute "pause", so we need a dirty hack to kill the pause command...
+		proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=getStdout())
+		proc.communicate("\r\n")
+		return proc
+	else:
+		args = ["apktool"]
+		args.extend(params)
+		return subprocess.run(args, stdout=getStdout())
+
+####################
 # Verify the package name - checks whether the target package is installed
 # on the device or if an exact match is not found presents the options to
 # the user for selection.
@@ -235,7 +252,7 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	for apkpath in localapks:
 		print("[+] Extracting: " + apkpath)
 		apkdir = apkpath[:-4]
-		ret = subprocess.run(["apktool", "d", apkpath, "-o", apkdir], stdout=getStdout())
+		ret = runApkTool(["d", apkpath, "-o", apkdir])
 		if ret.returncode != 0:
 			print("Error: Failed to run 'apktool d " + apkpath + " -o " + apkdir + "'.\nRun with --debug-output for more information.")
 			sys.exit(1)
@@ -266,13 +283,13 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	print("Rebuilding as a single APK.")
 	if os.path.exists(os.path.join(baseapkdir, "res", "navigation")) == True:
 		print("[+] Found res/navigation directory, rebuilding with 'apktool --use-aapt2'.")
-		ret = subprocess.run(["apktool", "--use-aapt2", "b", baseapkdir], stdout=getStdout())
+		ret = runApkTool(["--use-aapt2", "b", baseapkdir])
 		if ret.returncode != 0:
 			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
 			sys.exit(1)
 	else:
 		print("[+] Building APK with apktool.")
-		ret = subprocess.run(["apktool", "b", baseapkdir], stdout=getStdout())
+		ret = runApkTool(["b", baseapkdir])
 		if ret.returncode != 0:
 			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
 			sys.exit(1)
@@ -551,7 +568,7 @@ def enableUserCerts(apkfile):
 		#Extract the APK
 		apkdir = os.path.join(tmppath, apkfile.split(os.sep)[-1][:-4])
 		apkname = apkdir.split(os.sep)[-1] + ".apk"
-		ret = subprocess.run(["apktool", "d", apkfile, "-o", apkdir], stdout=getStdout())
+		ret = runApkTool(["d", apkfile, "-o", apkdir])
 		if ret.returncode != 0:
 			print("Error: Failed to run 'apktool d " + apkfile + " -o " + apkdir + "'.\nRun with --debug-output for more information.")
 			sys.exit(1)
@@ -572,7 +589,7 @@ def enableUserCerts(apkfile):
 		fh.close()
 		
 		#Rebuild and sign the APK
-		ret = subprocess.run(["apktool", "b", apkdir], stdout=getStdout())
+		ret = runApkTool(["b", apkdir])
 		if ret.returncode != 0:
 			print("Error: Failed to run 'apktool b " + apkdir + "'.\nRun with --debug-output for more information.")
 			sys.exit(1)
