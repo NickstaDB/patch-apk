@@ -146,7 +146,7 @@ def runApkTool(params):
 		
 		#apktool.bat has a dirty hack that execute "pause", so we need a dirty hack to kill the pause command...
 		proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=getStdout())
-		proc.communicate("\r\n")
+		proc.communicate(b"\r\n")
 		return proc
 	else:
 		args = ["apktool"]
