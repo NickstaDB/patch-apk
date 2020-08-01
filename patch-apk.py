@@ -180,7 +180,7 @@ def verifyPackageName(pkgname):
 	out = proc.stdout.decode("utf-8")
 	for line in out.split(os.linesep):
 		if line.startswith("package:"):
-			line = line[8:]
+			line = line[8:].strip()
 			if pkgname.lower() in line.lower():
 				packages.append(line)
 	
