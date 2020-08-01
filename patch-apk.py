@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import argparse
 import os
+import pkg_resources
 import shutil
 import subprocess
 import sys
@@ -36,7 +37,11 @@ def main():
 		
 		#Patch the target APK with objection
 		print("Patching " + apkfile.split(os.sep)[-1] + " with objection.")
-		ret = subprocess.run(["objection", "patchapk", "--skip-resources", "-s", apkfile], stdout=getStdout())
+		ret = None
+		if getObjectionVersion() >= pkg_resources.parse_version("1.9.3"):
+			ret = subprocess.run(["objection", "patchapk", "--skip-resources", "--ignore-nativelibs", "-s", apkfile], stdout=getStdout())
+		else:
+			ret = subprocess.run(["objection", "patchapk", "--skip-resources", "-s", apkfile], stdout=getStdout())
 		if ret.returncode != 0:
 			print("Error: Failed to run 'objection patchapk --skip-resources -s " + apkfile + "'.\nRun with --debug-output for more information.")
 			sys.exit(1)
@@ -135,6 +140,13 @@ def getStdout():
 		return None
 	else:
 		return subprocess.DEVNULL
+
+####################
+# Get objection version
+####################
+def getObjectionVersion():
+	proc = subprocess.run(["objection", "version"], stdout=subprocess.PIPE)
+	return pkg_resources.parse_version(proc.stdout.decode("utf-8").strip().split(": ")[1])
 
 ####################
 # Wrapper to run apktool platform-independently, complete with a dirty hack to fix apktool's dirty hack.
