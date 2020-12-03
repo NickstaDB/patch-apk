@@ -219,8 +219,9 @@ def getAPKPathsForPackage(pkgname):
 	out = proc.stdout.decode("utf-8")
 	for line in out.split(os.linesep):
 		if line.startswith("package:"):
-			print("[+] APK path: " + line[8:])
-			paths.append(line[8:])
+			line = line[8:].strip()
+			print("[+] APK path: " + line)
+			paths.append(line)
 	print("")
 	return paths
 
