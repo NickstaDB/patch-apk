@@ -27,7 +27,7 @@ def main():
 	#Create a temp directory to work from
 	with tempfile.TemporaryDirectory() as tmppath:
 		#Get the APK to patch. Combine app bundles/split APKs into a single APK.
-		apkfile = getTargetAPK(pkgname, apkpaths, tmppath, args.disable_styles_hack)
+		apkfile = getTargetAPK(pkgname, apkpaths, tmppath, args.disable_styles_hack, args.use_aapt2)
 		
 		#Save the APK if requested
 		if args.save_apk is not None:
@@ -116,6 +116,7 @@ def getArgs():
 		parser.add_argument("--no-enable-user-certs", help="Prevent patch-apk from enabling user-installed certificate support via network security config in the patched APK.", action="store_true")
 		parser.add_argument("--save-apk", help="Save a copy of the APK (or single APK) prior to patching for use with other tools.")
 		parser.add_argument("--disable-styles-hack", help="Disable the styles hack that removes duplicate entries from res/values/styles.xml.", action="store_true")
+		parser.add_argument("--use-aapt2", help="Force use AAPT2.", action="store_true")
 		parser.add_argument("--debug-output", help="Enable debug output.", action="store_true")
 		parser.add_argument("pkgname", help="The name, or partial name, of the package to patch (e.g. com.foo.bar).")
 		
@@ -248,12 +249,12 @@ def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack):
 		return localapks[0]
 	else:
 		#Combine split APKs
-		return combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack)
+		return combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, aapt2)
 
 ####################
 # Combine app bundles/split APKs into a single APK for patching.
 ####################
-def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
+def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, aapt2):
 	print("App bundle/split APK detected, rebuilding as a single APK.")
 	print("")
 	
@@ -294,8 +295,11 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	
 	#Rebuild the base APK
 	print("Rebuilding as a single APK.")
-	if os.path.exists(os.path.join(baseapkdir, "res", "navigation")) == True:
-		print("[+] Found res/navigation directory, rebuilding with 'apktool --use-aapt2'.")
+	if aapt2 or os.path.exists(os.path.join(baseapkdir, "res", "navigation")) == True:
+		if aapt2:
+			print("[+] User requested AAPT2, rebuilding with 'apktool --use-aapt2'.")
+		else:
+			print("[+] Found res/navigation directory, rebuilding with 'apktool --use-aapt2'.")
 		ret = runApkTool(["--use-aapt2", "b", baseapkdir])
 		if ret.returncode != 0:
 			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
