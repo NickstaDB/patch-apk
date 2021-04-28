@@ -11,6 +11,7 @@ An APK patcher, for use with [objection](https://github.com/sensepost/objection)
 
 ### Changelog ###
 
+* **28th April 2021:** Fixed a bug with `objection` version detection when the `objection version` command output an update notice.
 * **1st August 2020:** Updated for compatibility with `objection` version 1.9.3 and above and fixed a bug with line endings when retrieving package names from the Android device/emulator.
 * **30th March 2020:** Fixed a bug where dummy resource IDs were assumed to all have true names. Added a hack to resolve an issue with duplicate entries in res/values/styles.xml after decompiling with apktool.
 * **29th March 2020:** Added `--save-apk` parameter to save a copy of the unpatched single APK for use with other tools.
