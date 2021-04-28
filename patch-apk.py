@@ -146,7 +146,7 @@ def getStdout():
 ####################
 def getObjectionVersion():
 	proc = subprocess.run(["objection", "version"], stdout=subprocess.PIPE)
-	return pkg_resources.parse_version(proc.stdout.decode("utf-8").strip().split(": ")[1])
+	return pkg_resources.parse_version(proc.stdout.decode("utf-8").strip().split(": ")[-1].strip())
 
 ####################
 # Wrapper to run apktool platform-independently, complete with a dirty hack to fix apktool's dirty hack.
