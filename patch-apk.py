@@ -149,6 +149,13 @@ def getObjectionVersion():
 	return pkg_resources.parse_version(proc.stdout.decode("utf-8").strip().split(": ")[-1].strip())
 
 ####################
+# Get apktool version
+####################
+def getApktoolVersion():
+	proc = subprocess.run(["apktool", "-version"], stdout=subprocess.PIPE)
+	return pkg_resources.parse_version(proc.stdout.decode("utf-8").strip().split("-")[0].strip())
+
+####################
 # Wrapper to run apktool platform-independently, complete with a dirty hack to fix apktool's dirty hack.
 ####################
 def runApkTool(params):
@@ -296,6 +303,12 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 	print("Rebuilding as a single APK.")
 	if os.path.exists(os.path.join(baseapkdir, "res", "navigation")) == True:
 		print("[+] Found res/navigation directory, rebuilding with 'apktool --use-aapt2'.")
+		ret = runApkTool(["--use-aapt2", "b", baseapkdir])
+		if ret.returncode != 0:
+			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
+			sys.exit(1)
+	elif getApktoolVersion() > pkg_resources.parse_version("2.4.2"):
+		print("[+] Found apktool version > 2.4.2, rebuilding with 'apktool --use-aapt2'.")
 		ret = runApkTool(["--use-aapt2", "b", baseapkdir])
 		if ret.returncode != 0:
 			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
