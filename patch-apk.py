@@ -152,8 +152,13 @@ def getObjectionVersion():
 # Get apktool version
 ####################
 def getApktoolVersion():
-	proc = subprocess.run(["apktool", "-version"], stdout=subprocess.PIPE)
-	return pkg_resources.parse_version(proc.stdout.decode("utf-8").strip().split("-")[0].strip())
+	if os.name == "nt":
+		#apktool.bat has a dirty hack that execute "pause", so we need a dirty hack to kill the pause command...
+		proc = subprocess.Popen(["apktool.bat", "-version"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+		return proc.communicate(b"\r\n")[0].decode("utf-8").strip().split("\r\n")[0]
+        else:
+		proc = subprocess.run(["apktool", "-version"], stdout=subprocess.PIPE)
+		return proc.stdout.decode("utf-8").strip().split("-")[0].strip()
 
 ####################
 # Wrapper to run apktool platform-independently, complete with a dirty hack to fix apktool's dirty hack.
@@ -307,7 +312,7 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 		if ret.returncode != 0:
 			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
 			sys.exit(1)
-	elif getApktoolVersion() > pkg_resources.parse_version("2.4.2"):
+	elif pkg_resources.parse_version(getApktoolVersion()) > pkg_resources.parse_version("2.4.2"):
 		print("[+] Found apktool version > 2.4.2, rebuilding with 'apktool --use-aapt2'.")
 		ret = runApkTool(["--use-aapt2", "b", baseapkdir])
 		if ret.returncode != 0:
