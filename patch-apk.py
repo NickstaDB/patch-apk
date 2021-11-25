@@ -348,8 +348,6 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_onl
 	
 	signAndZipAlign(baseapkdir, baseapkfilename)
 	
-	shutil.move(os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk"), os.path.join(baseapkdir, "dist", baseapkfilename))
-	
 	#Return the new APK path
 	return os.path.join(baseapkdir, "dist", baseapkfilename)
 
