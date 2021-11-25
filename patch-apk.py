@@ -620,9 +620,7 @@ def rawREReplace(path, pattern, replacement):
 		with open(path, 'r') as file:
 			contents = file.read()
 		with open(path, 'w') as file:
-			output = re.sub(pattern, replacement, contents)
-			print(output)
-			file.write(output)
+			file.write(re.sub(pattern, replacement, contents))
 	else:
 		print("Error: Failed to find file at " + path + " for pattern replacement")
 		sys.exit(1)
