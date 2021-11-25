@@ -34,8 +34,7 @@ def main():
 		#Save the APK if requested
 		if args.save_apk is not None or args.extract_only:
 			targetName = args.save_apk if args.save_apk is not None else pkgname + ".apk"
-			print("Saving a copy of the APK to " + targetName)
-			print("")
+			print("\nSaving a copy of the APK to " + targetName)
 			shutil.copy(apkfile, targetName)
 
 			if args.extract_only:
@@ -43,27 +42,29 @@ def main():
 				return
 		
 		#Patch the target APK with objection
-		print("Patching " + apkfile.split(os.sep)[-1] + " with objection.")
-		ret = None
+		print("\nPatching " + apkfile.split(os.sep)[-1] + " with objection.")
 		if getObjectionVersion() >= pkg_resources.parse_version("1.9.3"):
 			assertSubprocessSuccessfulRun(["objection", "patchapk", "--skip-resources", "--ignore-nativelibs", "-s", apkfile], getStdout())
 		else:
 			assertSubprocessSuccessfulRun(["objection", "patchapk", "--skip-resources", "-s", apkfile], getStdout())
 		os.remove(apkfile)
 		shutil.move(apkfile[:-4] + ".objection.apk", apkfile)
-		print("")
 		
 		#Enable support for user-installed CA certs (e.g. Burp Suite CA installed on device by user)
 		if args.no_enable_user_certs == False:
 			enableUserCerts(apkfile)
 		
 		#Uninstall the original package from the device
+		print("\nUninstalling the original package from the device.")
 		assertSubprocessSuccessfulRun(["adb", "uninstall", pkgname], getStdout())
 		
 		#Install the patched APK
+		print("\nInstalling the patched APK to the device.")
 		assertSubprocessSuccessfulRun(["adb", "install", apkfile], getStdout())
 		
 		#Done
+		print("\nDone, cleaning up temporary files.")
+
 def assertSubprocessSuccessfulRun(args, stdout=subprocess.PIPE):
 	if subprocess.run(args, stdout).returncode != 0:
 		print(f"Error: Failed to run {' '.join(args)}.\nRun with --debug-output for more information.")
@@ -252,14 +253,13 @@ def verifyPackageName(pkgname):
 			if choice.isnumeric() == False or int(choice) < 1 or int(choice) > len(packages):
 				print("Invalid choice.\n")
 				choice = -1
-		print("")
 		return packages[int(choice) - 1]
 
 ####################
 # Get the APK path(s) on the device for the given package name.
 ####################
 def getAPKPathsForPackage(pkgname):
-	print("Getting APK path(s) for package: " + pkgname)
+	print("\nGetting APK path(s) for package: " + pkgname)
 	paths = []
 	proc = subprocess.run(["adb", "shell", "pm", "path", pkgname], stdout=subprocess.PIPE)
 	if proc.returncode != 0:
@@ -271,7 +271,6 @@ def getAPKPathsForPackage(pkgname):
 			line = line[8:].strip()
 			print("[+] APK path: " + line)
 			paths.append(line)
-	print("")
 	return paths
 
 ####################
@@ -280,7 +279,7 @@ def getAPKPathsForPackage(pkgname):
 ####################
 def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack, extract_only):
 	#Pull the APKs from the device
-	print("Pulling APK file(s) from device.")
+	print("\nPulling APK file(s) from device.")
 	localapks = []
 	for remotepath in apkpaths:
 		baseapkname = remotepath.split('/')[-1]
@@ -299,11 +298,10 @@ def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack, extract_only):
 # Combine app bundles/split APKs into a single APK for patching.
 ####################
 def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_only):
-	print("App bundle/split APK detected, rebuilding as a single APK.")
-	print("")
+	print("\nApp bundle/split APK detected, rebuilding as a single APK.")
 	
 	#Extract the individual APKs
-	print("Extracting individual APKs with apktool.")
+	print("\nExtracting individual APKs with apktool.")
 	baseapkdir = os.path.join(tmppath, pkgname + "-base")
 	baseapkfilename = pkgname + "-base.apk"
 	splitapkpaths = []
@@ -322,7 +320,6 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_onl
 		#Check for ProGuard/AndResGuard - this might b0rk decompile/recompile
 		if detectProGuard(apkdir):
 			print("\n[~] WARNING: Detected ProGuard/AndResGuard, decompile/recompile may not succeed.\n")
-	print("")
 	
 	#Walk the extracted APK directories and copy files and directories to the base APK
 	copySplitApkFiles(baseapkdir, splitapkpaths)
@@ -347,7 +344,7 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_onl
 	# If only extracting, no need to sign / zipalign
 	if extract_only:
 		return os.path.join(baseapkdir, "dist", baseapkfilename)
-
+	
 	signAndZipAlign(baseapkdir, baseapkfilename)
 	
 	shutil.move(os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk"), os.path.join(baseapkdir, "dist", baseapkfilename))
@@ -373,7 +370,7 @@ def detectProGuard(extractedPath):
 # Copy files and directories from split APKs into the base APK directory.
 ####################
 def copySplitApkFiles(baseapkdir, splitapkpaths):
-	print("Copying files and directories from split APKs into base APK.")
+	print("\nCopying files and directories from split APKs into base APK.")
 	for apkdir in splitapkpaths:
 		for (root, dirs, files) in os.walk(apkdir):
 			#Skip the original files directory
@@ -400,7 +397,6 @@ def copySplitApkFiles(baseapkdir, splitapkpaths):
 						continue
 					dbgPrint("[+] Moving file to base APK: " + p[len(baseapkdir):])
 					shutil.move(os.path.join(root, f), p)
-	print("")
 
 ####################
 # Fix public resource identifiers that are shared across split APKs.
@@ -412,7 +408,7 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 	#Bail if the base APK does not have a public.xml
 	if os.path.exists(os.path.join(baseapkdir, "res", "values", "public.xml")) == False:
 		return
-	print("Found public.xml in the base APK, fixing resource identifiers across split APKs.")
+	print("\nFound public.xml in the base APK, fixing resource identifiers across split APKs.")
 	
 	#Mappings of resource IDs and names
 	idToDummyName = {}
@@ -500,7 +496,6 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 				except xml.etree.ElementTree.ParseError:
 					print("[-] XML parse error in " + os.path.join(root, f) + ", skipping.")
 	print("[+] Updated " + str(updated) + " references to dummy resource names in the base APK.")
-	print("")
 
 ####################
 # Hack to remove duplicate style resource entries before rebuilding.
@@ -518,7 +513,7 @@ def hackRemoveDuplicateStyleEntries(baseapkdir):
 	#Bail if there is no styles.xml
 	if os.path.exists(os.path.join(baseapkdir, "res", "values", "styles.xml")) == False:
 		return
-	print("Found styles.xml in the base APK, checking for duplicate <style> -> <item> elements and removing.")
+	print("\nFound styles.xml in the base APK, checking for duplicate <style> -> <item> elements and removing.")
 	print("[~] Warning: this is a complete hack and may impact the visuals of the app, disable with --disable-styles-hack.")
 	
 	#Duplicates
@@ -542,7 +537,6 @@ def hackRemoveDuplicateStyleEntries(baseapkdir):
 	if len(dupes) > 0:
 		tree.write(os.path.join(baseapkdir, "res", "values", "styles.xml"), encoding="utf-8", xml_declaration=True)
 		print("[+] Removed " + str(len(dupes)) + " duplicate entries from styles.xml.")
-	print("")
 
 ####################
 # Update AndroidManifest.xml to disable APK splitting.
@@ -551,7 +545,7 @@ def hackRemoveDuplicateStyleEntries(baseapkdir):
 # -> Removes meta-data elements with the name "com.android.vending.splits" or "com.android.vending.splits.required"
 ####################
 def disableApkSplitting(baseapkdir):
-	print("Disabling APK splitting in AndroidManifest.xml of base APK.")
+	print("\nDisabling APK splitting in AndroidManifest.xml of base APK.")
 	
 	#Load AndroidManifest.xml
 	tree = xml.etree.ElementTree.parse(os.path.join(baseapkdir, "AndroidManifest.xml"))
@@ -583,7 +577,6 @@ def disableApkSplitting(baseapkdir):
 	
 	#Save the updated AndroidManifest.xml
 	tree.write(os.path.join(baseapkdir, "AndroidManifest.xml"), encoding="utf-8", xml_declaration=True)
-	print("")
 
 ####################
 # Replace occurrences of a pattern in a file with a replacement pattern or function (a la re.sub)
@@ -596,7 +589,7 @@ def rawREReplace(path, pattern, replacement):
 		with open(path, 'w') as file:
 			file.write(re.sub(pattern, replacement, contents))
 	else:
-		print("Error: Failed to find file at " + path + " for pattern replacement")
+		print("\nError: Failed to find file at " + path + " for pattern replacement")
 		sys.exit(1)
 
 ####################
@@ -604,7 +597,7 @@ def rawREReplace(path, pattern, replacement):
 ####################
 def enableUserCerts(apkfile):
 	#Create a separate temp directory to work from
-	print("Patching APK to enable support for user-installed CA certificates.")
+	print("\nPatching APK to enable support for user-installed CA certificates.")
 	with tempfile.TemporaryDirectory() as tmppath:
 		#Extract the APK
 		apkdir = os.path.join(tmppath, apkfile.split(os.sep)[-1][:-4])
