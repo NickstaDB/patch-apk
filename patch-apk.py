@@ -333,6 +333,9 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_onl
 	
 	#Disable APK splitting in the base AndroidManifest.xml file
 	disableApkSplitting(baseapkdir)
+
+	#Fix untracked apktool bug where improperly escaped ampersands (&amp instead of &amp;) appear in strings.xml
+	rawREReplace(os.path.join(baseapkdir, "res", "values", "strings.xml"), r'(&amp)([^;])', r'\1;\2')
 	
 	#Rebuild the base APK
 	print("Rebuilding as a single APK.")
