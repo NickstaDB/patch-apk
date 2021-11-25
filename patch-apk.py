@@ -86,10 +86,10 @@ def main():
 # -> Keystore
 ####################
 def checkDependencies(extract_only):
-	deps = ["adb", "apktool"]
+	deps = ["adb", "apktool", "aapt"]
 
 	if not extract_only:
-		deps += ["objection", "aapt", "jarsigner", "zipalign", "apksigner"]
+		deps += ["objection",  "jarsigner", "zipalign", "apksigner"]
 
 	missing = []
 	for dep in deps:
