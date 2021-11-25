@@ -89,7 +89,7 @@ def checkDependencies(extract_only):
 	deps = ["adb", "apktool"]
 
 	if not extract_only:
-		deps += ["objection", "aapt", "jarsigner", "zipalign"]
+		deps += ["objection", "aapt", "jarsigner", "zipalign", "apksigner"]
 
 	missing = []
 	for dep in deps:
@@ -620,7 +620,9 @@ def rawREReplace(path, pattern, replacement):
 		with open(path, 'r') as file:
 			contents = file.read()
 		with open(path, 'w') as file:
-			file.write(re.sub(pattern, replacement, contents))
+			output = re.sub(pattern, replacement, contents)
+			print(output)
+			file.write(output)
 	else:
 		print("Error: Failed to find file at " + path + " for pattern replacement")
 		sys.exit(1)
