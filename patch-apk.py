@@ -46,12 +46,9 @@ def main():
 		print("Patching " + apkfile.split(os.sep)[-1] + " with objection.")
 		ret = None
 		if getObjectionVersion() >= pkg_resources.parse_version("1.9.3"):
-			ret = subprocess.run(["objection", "patchapk", "--skip-resources", "--ignore-nativelibs", "-s", apkfile], stdout=getStdout())
+			assertSubprocessSuccessfulRun(["objection", "patchapk", "--skip-resources", "--ignore-nativelibs", "-s", apkfile], getStdout())
 		else:
-			ret = subprocess.run(["objection", "patchapk", "--skip-resources", "-s", apkfile], stdout=getStdout())
-		if ret.returncode != 0:
-			print("Error: Failed to run 'objection patchapk --skip-resources -s " + apkfile + "'.\nRun with --debug-output for more information.")
-			sys.exit(1)
+			assertSubprocessSuccessfulRun(["objection", "patchapk", "--skip-resources", "-s", apkfile], getStdout())
 		os.remove(apkfile)
 		shutil.move(apkfile[:-4] + ".objection.apk", apkfile)
 		print("")
@@ -61,23 +58,16 @@ def main():
 			enableUserCerts(apkfile)
 		
 		#Uninstall the original package from the device
-		print("Uninstalling the original package from the device.")
-		ret = subprocess.run(["adb", "uninstall", pkgname], stdout=getStdout())
-		if ret.returncode != 0:
-			print("Error: Failed to run 'adb uninstall " + pkgname + "'.\nRun with --debug-output for more information.")
-			sys.exit(1)
-		print("")
+		assertSubprocessSuccessfulRun(["adb", "uninstall", pkgname], getStdout())
 		
 		#Install the patched APK
-		print("Installing the patched APK to the device.")
-		ret = subprocess.run(["adb", "install", apkfile], stdout=getStdout())
-		if ret.returncode != 0:
-			print("Error: Failed to run 'adb install " + apkfile + "'.\nRun with --debug-output for more information.")
-			sys.exit(1)
-		print("")
+		assertSubprocessSuccessfulRun(["adb", "install", apkfile], getStdout())
 		
 		#Done
-		print("Done, cleaning up temporary files.")
+def assertSubprocessSuccessfulRun(args, stdout=subprocess.PIPE):
+	if subprocess.run(args, stdout).returncode != 0:
+		print(f"Error: Failed to run {' '.join(args)}.\nRun with --debug-output for more information.")
+		sys.exit(1)
 
 ####################
 # Check that required dependencies are present:
@@ -279,11 +269,7 @@ def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack, extract_only):
 		baseapkname = remotepath.split('/')[-1]
 		localapks.append(os.path.join(tmppath, pkgname + "-" + baseapkname))
 		print("[+] Pulling: " + pkgname + "-" + baseapkname)
-		ret = subprocess.run(["adb", "pull", remotepath, localapks[-1]], stdout=getStdout())
-		if ret.returncode != 0:
-			print("Error: Failed to run 'adb pull " + remotepath + " " + localapks[-1] + "'.\nRun with --debug-output for more information.")
-			sys.exit(1)
-	print("")
+		assertSubprocessSuccessfulRun(["adb", "pull", remotepath, localapks[-1]], getStdout())
 	
 	#Return the target APK path
 	if len(localapks) == 1:
