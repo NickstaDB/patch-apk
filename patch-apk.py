@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree
+import re
 
 ####################
 # Main()
@@ -341,6 +342,8 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_onl
 	if extract_only:
 		return os.path.join(baseapkdir, "dist", baseapkfilename)
 
+	#Fix https://github.com/NickstaDB/patch-apk/issues/31
+	rawREReplace(os.path.join(baseapkdir, "apktool.yml"), r"(?<=targetSdkVersion: ')\d+", lambda m: '29' if int(m.group()) >= 30 else m.group())
 	
 	#Sign the new APK
 	print("[+] Signing new APK.")
@@ -604,6 +607,20 @@ def disableApkSplitting(baseapkdir):
 	#Save the updated AndroidManifest.xml
 	tree.write(os.path.join(baseapkdir, "AndroidManifest.xml"), encoding="utf-8", xml_declaration=True)
 	print("")
+
+####################
+# Replace occurrences of a pattern in a file with a replacement pattern or function (a la re.sub)
+####################
+def rawREReplace(path, pattern, replacement):
+	if os.path.exists(path):
+		contents = ""
+		with open(path, 'r') as file:
+			contents = file.read()
+		with open(path, 'w') as file:
+			file.write(re.sub(pattern, replacement, contents))
+	else:
+		print("Error: Failed to find file at " + path + " for pattern replacement")
+		sys.exit(1)
 
 ####################
 # Patch an APK to enable support for user-installed CA certs (e.g. Burp Suite CA cert).
