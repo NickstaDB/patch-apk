@@ -203,17 +203,18 @@ def build(baseapkdir):
 # Fixes https://github.com/NickstaDB/patch-apk/issues/31 by no longer using jarsigner (V1 APK signatures)
 ####################
 def signAndZipAlign(baseapkdir, baseapkfilename):
+	#Zip align the new APK
+	print("[+] Zip aligning new APK.")
+	assertSubprocessSuccessfulRun(["zipalign", "-f", "4", os.path.join(baseapkdir, "dist", baseapkfilename),
+		os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk")], getStdout())
+	shutil.move(os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk"), os.path.join(baseapkdir, "dist", baseapkfilename))
+
 	#Sign the new APK
 	print("[+] Signing new APK.")
 	assertSubprocessSuccessfulRun(["apksigner", "sign", "--ks",
 		os.path.realpath(os.path.join(os.path.realpath(__file__), "..", "data", "patch-apk.keystore")), "--ks-pass",
 		"pass:patch-apk", "--ks-key-alias", "patch-apk-key", os.path.join(baseapkdir, "dist", baseapkfilename)],
 		getStdout())
-
-	#Zip align the new APK
-	print("[+] Zip aligning new APK.")
-	assertSubprocessSuccessfulRun(["zipalign", "-f", "4", os.path.join(baseapkdir, "dist", baseapkfilename),
-		os.path.join(baseapkdir, "dist", baseapkfilename[:-4] + "-aligned.apk")], getStdout())
 
 ####################
 # Verify the package name - checks whether the target package is installed
