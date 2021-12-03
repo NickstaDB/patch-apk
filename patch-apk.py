@@ -458,8 +458,9 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 			if f.lower().endswith(".xml"):
 				try:
 					#Load the XML
-					dbgPrint("[~] Parsing " + os.path.join(root, f))
-					tree = xml.etree.ElementTree.parse(os.path.join(root, f))
+					xmlPath = os.path.join(root, f)
+					dbgPrint("[~] Parsing " + xmlPath)
+					tree = xml.etree.ElementTree.parse(xmlPath)
 					
 					#Register the namespaces and get the prefix for the "android" namespace
 					namespaces = dict([node for _,node in xml.etree.ElementTree.iterparse(os.path.join(baseapkdir, "AndroidManifest.xml"), events=["start-ns"])])
