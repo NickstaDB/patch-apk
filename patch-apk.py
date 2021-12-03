@@ -485,7 +485,7 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
 							
 							#Fix for untracked bug where drawables are decoded without drawable values (@null)
 							if f == "drawables.xml" and attr == "name" and el.text is None:
-								el.text = "#000000"
+								el.text = "#000000ff"
 						
 						#Check for references to APKTOOL_DUMMY_XXX resources in the element text
 						val = el.text
