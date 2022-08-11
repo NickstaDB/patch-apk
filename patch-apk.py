@@ -616,8 +616,11 @@ def rawREReplace(path, pattern, replacement):
     contents = ""
     with open(path, 'r') as file:
       contents = file.read()
-    with open(path, 'w') as file:
-      file.write(re.sub(pattern, replacement, contents))
+    newContents = re.sub(pattern, replacement, contents)
+    if (contents != newContents):
+      dbgPrint("\n[~] Patching " + path)
+      with open(path, 'w') as file:
+        file.write(newContents)
   else:
     print("\nError: Failed to find file at " + path + " for pattern replacement")
     sys.exit(1)
