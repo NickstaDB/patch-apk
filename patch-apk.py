@@ -9,15 +9,20 @@ import tempfile
 import xml.etree.ElementTree
 import re
 
+SUPPORTED_VERSION = "2.5.0"
 NULL_DECODED_DRAWABLE_COLOR = "#000000ff"
 
 ####################
 # Main()
 ####################
 def main():
-  
   #Grab argz
   args = getArgs()
+
+  #Warn for unexpected version
+  apktoolVersion = getApktoolVersion()
+  if apktoolVersion != pkg_resources.parse_version(SUPPORTED_VERSION):
+    print("WARNING: currently installed apktool version " + apktoolVersion + " is not the same as what this version of this script is developed for (" + SUPPORTED_VERSION + "), you may suffer from build failures, bugs, and obsolete patches")
 
   #Check that dependencies are available
   checkDependencies(args.extract_only)
