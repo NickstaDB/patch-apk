@@ -353,6 +353,7 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_onl
   disableApkSplitting(baseapkdir)
 
   #Fix apktool bug where ampersands are improperly escaped: https://github.com/iBotPeaches/Apktool/issues/2703
+  print("\nFixing any improperly escaped ampersands.")
   rawREReplace(os.path.join(baseapkdir, "res", "values", "strings.xml"), r'(&amp)([^;])', r'\1;\2')
   
   #Rebuild the base APK
@@ -500,6 +501,9 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
                 updated += 1
                 changed = True
               
+              if changed:
+                dbgPrint("[~] Patching dummy apktool attribute \"" + attr + "\" value \"" + val + "\"" + (" -> \"" + el.attrib[attr] + "\"" if val != el.attrib[attr] else "") + " (" + str(updated) + ")")
+              
               #Fix for untracked bug where drawables are decoded without drawable values (@null)
               if f == "drawables.xml" and attr == "name" and el.text is None:
                 el.text = "#000000ff"
@@ -510,9 +514,11 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
               el.text = val.split("/")[0] + "/" + dummyNameToRealName[val.split("/")[1]]
               updated += 1
               changed = True
+              dbgPrint("[~] Patching dummy apktool element \"" + el.get('name', el.tag) + "\" value \"" + val + (" -> \"" + el.text + "\"" if val != el.text else "") + str(updated) + ")")
           
           #Save the file if it was updated
           if changed == True:
+            dbgPrint("[+] Writing patched " + f)
             tree.write(os.path.join(root, f), encoding="utf-8", xml_declaration=True)
         except xml.etree.ElementTree.ParseError:
           print("[-] XML parse error in " + os.path.join(root, f) + ", skipping.")
