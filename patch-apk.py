@@ -176,9 +176,26 @@ def runApkTool(params):
     return subprocess.run(args, stdout=getStdout())
 
 ####################
+# Fix private resources preventing builds (apktool wontfix: https://github.com/iBotPeaches/Apktool/issues/2761)
+####################
+def fixPrivateResources(baseapkdir):
+  print("\Forcing all private resources to be public")
+  updated = 0
+  for (root, dirs, files) in os.walk(os.path.join(baseapkdir, "res")):
+    for f in files:
+      if f.lower().endswith(".xml"):
+        rawREReplace(os.path.join(root, f), '@android', '@*android')
+        updated += 1
+  if updated > 0:
+    print("[+] Updated " + str(updated) + " private resources before building APK.")
+
+####################
 # Build the APK
 ####################
 def build(baseapkdir):
+  #Fix private resources preventing builds (apktool wontfix: https://github.com/iBotPeaches/Apktool/issues/2761)
+  fixPrivateResources(baseapkdir)
+
   if os.path.exists(os.path.join(baseapkdir, "res", "navigation")) == True:
     print("[+] Found res/navigation directory, rebuilding with 'apktool --use-aapt2'.")
     ret = runApkTool(["--use-aapt2", "b", baseapkdir])
