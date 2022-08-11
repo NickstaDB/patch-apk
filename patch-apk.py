@@ -9,6 +9,8 @@ import tempfile
 import xml.etree.ElementTree
 import re
 
+NULL_DECODED_DRAWABLE_COLOR = "#000000ff"
+
 ####################
 # Main()
 ####################
@@ -506,7 +508,8 @@ def fixPublicResourceIDs(baseapkdir, splitapkpaths):
               
               #Fix for untracked bug where drawables are decoded without drawable values (@null)
               if f == "drawables.xml" and attr == "name" and el.text is None:
-                el.text = "#000000ff"
+                dbgPrint("[~] Patching null decoded drawable \"" + el.attrib[attr] + "\" (" + str(updated) + ")")
+                el.text = NULL_DECODED_DRAWABLE_COLOR
             
             #Check for references to APKTOOL_DUMMY_XXX resources in the element text
             val = el.text
