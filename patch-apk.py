@@ -152,8 +152,15 @@ def getObjectionVersion():
 # Get apktool version
 ####################
 def getApktoolVersion():
-	proc = subprocess.run(["apktool", "-version"], stdout=subprocess.PIPE)
-	return pkg_resources.parse_version(proc.stdout.decode("utf-8").strip().split("-")[0].strip())
+	output = ""
+	if os.name == "nt":
+		proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+		proc.communicate(b"\r\n")
+		output = proc.stdout.decode("utf-8").strip()
+	else:
+		proc = subprocess.run(["apktool", "-version"], stdout=subprocess.PIPE)
+		output = proc.stdout.decode("utf-8").strip()
+	return pkg_resources.parse_version(output.split("-")[0].strip())
 
 ####################
 # Wrapper to run apktool platform-independently, complete with a dirty hack to fix apktool's dirty hack.
