@@ -12,11 +12,12 @@ import xml.etree.ElementTree
 # Main()
 ####################
 def main():
-	#Check that dependencies are available
-	checkDependencies()
 	
 	#Grab argz
 	args = getArgs()
+
+	#Check that dependencies are available
+	checkDependencies(args.extract_only)
 	
 	#Verify the package name and ensure it's installed (also supports partial package names)
 	pkgname = verifyPackageName(args.pkgname)
@@ -27,13 +28,18 @@ def main():
 	#Create a temp directory to work from
 	with tempfile.TemporaryDirectory() as tmppath:
 		#Get the APK to patch. Combine app bundles/split APKs into a single APK.
-		apkfile = getTargetAPK(pkgname, apkpaths, tmppath, args.disable_styles_hack)
+		apkfile = getTargetAPK(pkgname, apkpaths, tmppath, args.disable_styles_hack, args.extract_only)
 		
 		#Save the APK if requested
-		if args.save_apk is not None:
-			print("Saving a copy of the APK to " + args.save_apk)
+		if args.save_apk is not None or args.extract_only:
+			targetName = args.save_apk if args.save_apk is not None else pkgname + ".apk"
+			print("Saving a copy of the APK to " + targetName)
 			print("")
-			shutil.copy(apkfile, args.save_apk)
+			shutil.copy(apkfile, targetName)
+
+			if args.extract_only:
+				os.remove(apkfile)
+				return
 		
 		#Patch the target APK with objection
 		print("Patching " + apkfile.split(os.sep)[-1] + " with objection.")
@@ -78,8 +84,12 @@ def main():
 # -> Android device connected
 # -> Keystore
 ####################
-def checkDependencies():
-	deps = ["adb", "apktool", "jarsigner", "objection", "zipalign"]
+def checkDependencies(extract_only):
+	deps = ["adb", "apktool"]
+
+	if not extract_only:
+		deps += ["objection", "aapt", "jarsigner", "zipalign"]
+
 	missing = []
 	for dep in deps:
 		if shutil.which(dep) is None:
@@ -111,10 +121,11 @@ def getArgs():
 	if not hasattr(getArgs, "parsed_args"):
 		#Parse the command line
 		parser = argparse.ArgumentParser(
-			description="patch-apk - Pull and patch Android apps for use with objection/frida."
+			description="patch-apk - Pull and patch Android apps for use with objection/frida. Supports split APKs."
 		)
 		parser.add_argument("--no-enable-user-certs", help="Prevent patch-apk from enabling user-installed certificate support via network security config in the patched APK.", action="store_true")
-		parser.add_argument("--save-apk", help="Save a copy of the APK (or single APK) prior to patching for use with other tools.")
+		parser.add_argument("--save-apk", help="Save a copy of the APK (or single APK) prior to patching for use with other tools. APK will be saved under the given name.")
+		parser.add_argument("--extract-only", help="Disable including objection and pushing modified APK to device.", action="store_true")
 		parser.add_argument("--disable-styles-hack", help="Disable the styles hack that removes duplicate entries from res/values/styles.xml.", action="store_true")
 		parser.add_argument("--debug-output", help="Enable debug output.", action="store_true")
 		parser.add_argument("pkgname", help="The name, or partial name, of the package to patch (e.g. com.foo.bar).")
@@ -243,7 +254,7 @@ def getAPKPathsForPackage(pkgname):
 # Pull the APK file(s) for the package and return the local file path to work with.
 # If the package is an app bundle/split APK, combine the APKs into a single APK.
 ####################
-def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack):
+def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack, extract_only):
 	#Pull the APKs from the device
 	print("Pulling APK file(s) from device.")
 	localapks = []
@@ -262,12 +273,12 @@ def getTargetAPK(pkgname, apkpaths, tmppath, disableStylesHack):
 		return localapks[0]
 	else:
 		#Combine split APKs
-		return combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack)
+		return combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_only)
 
 ####################
 # Combine app bundles/split APKs into a single APK for patching.
 ####################
-def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
+def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack, extract_only):
 	print("App bundle/split APK detected, rebuilding as a single APK.")
 	print("")
 	
@@ -327,6 +338,10 @@ def combineSplitAPKs(pkgname, localapks, tmppath, disableStylesHack):
 			print("Error: Failed to run 'apktool b " + baseapkdir + "'.\nRun with --debug-output for more information.")
 			sys.exit(1)
 	
+	# If only extracting, no need to sign / zipalign
+	if extract_only:
+		return os.path.join(baseapkdir, "dist", baseapkfilename)
+
 	
 	#Sign the new APK
 	print("[+] Signing new APK.")
@@ -650,5 +665,8 @@ def enableUserCerts(apkfile):
 # Main
 ####################
 if __name__ == "__main__":
-	main()
+	try:
+		main()
+	except KeyboardInterrupt:
+		sys.exit()
 
