@@ -186,7 +186,7 @@ def runApkTool(params):
 # Fix private resources preventing builds (apktool wontfix: https://github.com/iBotPeaches/Apktool/issues/2761)
 ####################
 def fixPrivateResources(baseapkdir):
-  print("\Forcing all private resources to be public")
+  print("Forcing all private resources to be public")
   updated = 0
   for (root, dirs, files) in os.walk(os.path.join(baseapkdir, "res")):
     for f in files:
