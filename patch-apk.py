@@ -154,9 +154,10 @@ def getObjectionVersion():
 def getApktoolVersion():
 	output = ""
 	if os.name == "nt":
+		args = ["apktool.bat", "-version"]
 		proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+		output = proc.stdout.readline().decode("utf-8").strip()
 		proc.communicate(b"\r\n")
-		output = proc.stdout.decode("utf-8").strip()
 	else:
 		proc = subprocess.run(["apktool", "-version"], stdout=subprocess.PIPE)
 		output = proc.stdout.decode("utf-8").strip()
@@ -651,4 +652,3 @@ def enableUserCerts(apkfile):
 ####################
 if __name__ == "__main__":
 	main()
-
