@@ -74,7 +74,6 @@ def main():
         # Install the patched APK
         print("\n[+] Installing the patched APK to the device.")
         assertSubprocessSuccessfulRun(["adb", "install", apkfile])
-        print(apkfile)
         
         # Done
         print("\n[+] Done")

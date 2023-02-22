@@ -24,6 +24,7 @@ An APK patcher, for use with [objection](https://github.com/sensepost/objection)
   * Added `--verbose` flag
   * Fixed bug with objection AndroidManifest extraction
   * Updated output format
+  * Remove dependency on apksigner by using objection's signapk command
 
 * **29th April 2021:** Implemented a fix for an issue with `apktool` where the handling of some resource XML elements changed and the `--use-aapt2` flag is required ([https://github.com/iBotPeaches/Apktool/issues/2462](https://github.com/iBotPeaches/Apktool/issues/2462)).
 * **28th April 2021:** Fixed a bug with `objection` version detection when the `objection version` command output an update notice.
@@ -70,104 +71,125 @@ When `patch-apk.py` is done, the installed app should be patched with objection 
 **Partial Package Name Matching:** Pass a partial package name to `patch-apk.py` and it'll automatically grab the correct package name or ask you to confirm from available options.
 
 ```
-$ python3 patch-apk.py ovid
-Multiple matching packages installed, select the package to patch.
-[1] com.android.providers.telephony
-[2] com.android.providers.calendar
-[3] com.android.providers.media
-[4] com.android.providers.downloads
-[5] com.android.providers.downloads.ui
-[6] com.android.providers.settings
-[7] com.android.providers.partnerbookmarks
-[8] com.android.bookmarkprovider
-[9] com.android.providers.blockednumber
-[10] com.android.providers.userdictionary
-[11] com.joinzoe.covid_zoe
-[12] com.android.providers.contacts
-Choice:
+$ python3 patch-apk.py proxy
+
+[!] Multiple matching packages installed, select the package to patch.
+
+[1] org.proxydroid
+[2] com.android.proxyhandler
+Choice: 
+
 ```
 
 **Patching Split APKs:** Split APKs are automatically detected and combined into a single APK before patching. Split APKs can be identified by multiple APK paths being returned by the `adb shell pm path` command as shown below.
 
 ```
-$ adb shell pm path com.joinzoe.covid_zoe
-package:/data/app/com.joinzoe.covid_zoe-vck7Y7NlVGutCaaAbonakw==/base.apk
-package:/data/app/com.joinzoe.covid_zoe-vck7Y7NlVGutCaaAbonakw==/split_config.arm64_v8a.apk
-package:/data/app/com.joinzoe.covid_zoe-vck7Y7NlVGutCaaAbonakw==/split_config.en.apk
-package:/data/app/com.joinzoe.covid_zoe-vck7Y7NlVGutCaaAbonakw==/split_config.xxhdpi.apk
+$ adb shell pm path org.proxydroid
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/base.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.arm64_v8a.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.en.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.fr.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.nl.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.xxhdpi.apk
 ```
 
-The following shows `patch-apk.py` detecting, rebuilding, and patching a split APK. Some output has been snipped for brevity.
+The following shows `patch-apk.py` detecting, rebuilding, and patching a split APK. Some output has been snipped for brevity. The `-v` flag has been set to show additional info.
 
 ```
-$ python3 patch-apk.py covid
-Getting APK path(s) for package: com.joinzoe.covid_zoe
-[+] APK path: /data/app/com.joinzoe.covid_zoe-vck7Y7NlVGutCaaAbonakw==/base.apk
-[+] APK path: /data/app/com.joinzoe.covid_zoe-vck7Y7NlVGutCaaAbonakw==/split_config.arm64_v8a.apk
-[+] APK path: /data/app/com.joinzoe.covid_zoe-vck7Y7NlVGutCaaAbonakw==/split_config.en.apk
-[+] APK path: /data/app/com.joinzoe.covid_zoe-vck7Y7NlVGutCaaAbonakw==/split_config.xxhdpi.apk
+$ python3 patch-apk.py org.proxydroid -v
 
-Pulling APK file(s) from device.
-[+] Pulling: com.joinzoe.covid_zoe-base.apk
-[+] Pulling: com.joinzoe.covid_zoe-split_config.arm64_v8a.apk
-[+] Pulling: com.joinzoe.covid_zoe-split_config.en.apk
-[+] Pulling: com.joinzoe.covid_zoe-split_config.xxhdpi.apk
+[+] Retrieving APK path(s) for package: org.proxydroid
+    [+] APK path: /data/app/~~FTVBmscrJiLerJdXIEa5tw==/org.proxydroid-KMq91nU1y9Qz8ZZAGM--RA==/base.apk
+    [+] APK path: /data/app/~~FTVBmscrJiLerJdXIEa5tw==/org.proxydroid-KMq91nU1y9Qz8ZZAGM--RA==/split_config.arm64_v8a.apk
+    [+] APK path: /data/app/~~FTVBmscrJiLerJdXIEa5tw==/org.proxydroid-KMq91nU1y9Qz8ZZAGM--RA==/split_config.en.apk
+    [+] APK path: /data/app/~~FTVBmscrJiLerJdXIEa5tw==/org.proxydroid-KMq91nU1y9Qz8ZZAGM--RA==/split_config.fr.apk
+    [+] APK path: /data/app/~~FTVBmscrJiLerJdXIEa5tw==/org.proxydroid-KMq91nU1y9Qz8ZZAGM--RA==/split_config.nl.apk
+    [+] APK path: /data/app/~~FTVBmscrJiLerJdXIEa5tw==/org.proxydroid-KMq91nU1y9Qz8ZZAGM--RA==/split_config.xxhdpi.apk
 
-App bundle/split APK detected, rebuilding as a single APK.
+[+] Pulling APK file(s) from device |################################| 6/6
+    [+] Pulled: org.proxydroid-base.apk
+    [+] Pulled: org.proxydroid-split_config.arm64_v8a.apk
+    [+] Pulled: org.proxydroid-split_config.en.apk
+    [+] Pulled: org.proxydroid-split_config.fr.apk
+    [+] Pulled: org.proxydroid-split_config.nl.apk
+    [+] Pulled: org.proxydroid-split_config.xxhdpi.apk
 
-Extracting individual APKs with apktool.
-[+] Extracting: /tmp/tmp1kir74u_/com.joinzoe.covid_zoe-base.apk
-[+] Extracting: /tmp/tmp1kir74u_/com.joinzoe.covid_zoe-split_config.arm64_v8a.apk
-[+] Extracting: /tmp/tmp1kir74u_/com.joinzoe.covid_zoe-split_config.en.apk
-[+] Extracting: /tmp/tmp1kir74u_/com.joinzoe.covid_zoe-split_config.xxhdpi.apk
+[!] App bundle/split APK detected, rebuilding as a single APK.
 
-Copying files and directories from split APKs into base APK.
-[+] Creating directory in base APK: /lib
-[+] Creating directory in base APK: /lib/arm64-v8a
-[+] Moving file to base APK: /lib/arm64-v8a/libfb.so
-...
-[+] Moving file to base APK: /res/drawable-xxxhdpi/shell_launch_background_image.png
+[+] Disassembling split APKs |################################| 6/6
+    
+    Extracted: /var/folders/t3/vz305z151ng8y2rwvpkx28xw0000gn/T/tmpyw7wl64i/org.proxydroid-base.apk
+    Extracted: /var/folders/t3/vz305z151ng8y2rwvpkx28xw0000gn/T/tmpyw7wl64i/org.proxydroid-split_config.arm64_v8a.apk
+    Extracted: /var/folders/t3/vz305z151ng8y2rwvpkx28xw0000gn/T/tmpyw7wl64i/org.proxydroid-split_config.en.apk
+    Extracted: /var/folders/t3/vz305z151ng8y2rwvpkx28xw0000gn/T/tmpyw7wl64i/org.proxydroid-split_config.fr.apk
+    Extracted: /var/folders/t3/vz305z151ng8y2rwvpkx28xw0000gn/T/tmpyw7wl64i/org.proxydroid-split_config.nl.apk
+    Extracted: /var/folders/t3/vz305z151ng8y2rwvpkx28xw0000gn/T/tmpyw7wl64i/org.proxydroid-split_config.xxhdpi.apk
 
-Found public.xml in the base APK, fixing resource identifiers across split APKs.
-[+] Resolving 83 resource identifiers.
-[+] Located 83 true resource names.
-[+] Updated 83 dummy resource names with true names in the base APK.
-[+] Updated 164 references to dummy resource names in the base APK.
+[+] Rebuilding as a single APK
+    
+    [+] Found public.xml in the base APK, fixing resource identifiers across split APKs.
+    [+] Resolving 21 resource identifiers.
+    [+] Located 21 true resource names.
+    [+] Updated 21 dummy resource names with true names in the base APK.
+    [+] Updated 47 references to dummy resource names in the base APK.
+    [+] Disabling APK splitting in AndroidManifest.xml of base APK.
+    [+] Fixing any improperly escaped ampersands.
+    [+] Forcing all private resources to be public
+    [+] Updated 350 private resources before building APK.
+    [+] Rebuilding with 'apktool --use-aapt2'.
 
-Disabling APK splitting in AndroidManifest.xml of base APK.
+[+] Patching org.proxydroid-base.apk with objection.
 
-Rebuilding as a single APK.
-[+] Building APK with apktool.
-[+] Signing new APK.
-[+] Zip aligning new APK.
+[+] Patching APK to enable support for user-installed CA certificates.
+    [+] Forcing all private resources to be public
+    [+] Updated 351 private resources before building APK.
+    [+] Rebuilding with 'apktool --use-aapt2'.
+    [+] Zip aligning new APK.
+    [+] Signing new APK.
 
-Patching com.joinzoe.covid_zoe-base.apk with objection.
+[+] Uninstalling the original package from the device.
 
-Patching APK to enable support for user-installed CA certificates.
+[+] Installing the patched APK to the device.
 
-Uninstalling the original package from the device.
-
-Installing the patched APK to the device.
-
-Done, cleaning up temporary files.
+[+] Done
 ```
 
 After `patch-apk.py` completes, we can run `adb shell pm path` again to verify that there is now a single patched APK installed on the device.
 
 ```
-$ adb shell pm path com.joinzoe.covid_zoe
-package:/data/app/com.joinzoe.covid_zoe-9NuZnT-lK3qM_IZQEHhTgA==/base.apk
+$ adb shell pm path org.proxydroid
+package:/data/app/org.proxydroid-9NuZnT-lK3qM_IZQEHhTgA==/base.apk
+```
+
+By default, patch-apk will inject the frida gadget and modify the network security config. It is also possible to only perform an extraction by providing the `--extract-only` flag. Any split apks will still be merged and a local copy of the APK will be produced:
+
+```
+$ python3 patch-apk.py org.proxydroid --extract-only
+
+[+] Retrieving APK path(s) for package: org.proxydroid
+
+[+] Pulling APK file(s) from device |################################| 6/6
+
+[!] App bundle/split APK detected, rebuilding as a single APK.
+
+[+] Disassembling split APKs |################################| 6/6
+
+[+] Rebuilding as a single APK
+
+[+] Saving a copy of the APK to org.proxydroid.apk
 ```
 
 ## Combining Split APKs ##
 Split APKs have been supported since Android 5/Lollipop (June 2014, API level 21). Essentially this allows an app to be split across multiple APK files, for example one might contain the main code and another might contain image resources for a given screen resolution. We can identify whether an app uses split APKs with the `adb shell pm path` command like so:
 
 ```
-$ adb shell pm path com.joinzoe.covid_zoe
-package:/data/app/com.joinzoe.covid_zoe-NW8ZbgI5VPzvSZ1NgMa4CQ==/base.apk
-package:/data/app/com.joinzoe.covid_zoe-NW8ZbgI5VPzvSZ1NgMa4CQ==/split_config.arm64_v8a.apk
-package:/data/app/com.joinzoe.covid_zoe-NW8ZbgI5VPzvSZ1NgMa4CQ==/split_config.en.apk
-package:/data/app/com.joinzoe.covid_zoe-NW8ZbgI5VPzvSZ1NgMa4CQ==/split_config.xxhdpi.apk
+$ adb shell pm path org.proxydroid
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/base.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.arm64_v8a.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.en.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.fr.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.nl.apk
+package:/data/app/~~TP7sglBuEoDc3yH0wpZdiA==/org.proxydroid-PCy1JxTMVJT3KmxVqaagGQ==/split_config.xxhdpi.apk
 ```
 
 These can be combined into a single APK for use with other tools such as `objection patchapk`. This is done by `patch-apk.py` as follows:
