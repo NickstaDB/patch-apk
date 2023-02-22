@@ -17,7 +17,7 @@ An APK patcher, for use with [objection](https://github.com/sensepost/objection)
 
 ### Changelog ###
 
-* **22nd February 2022:** Took over project and added various features:
+* **22nd February 2023:** Took over project and added various features:
   * Merged modifications from @jseigelis's fork
   * Removed support for outdated objection versions
   * Fixed bug for `--debug-output`
