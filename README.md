@@ -1,3 +1,5 @@
+# MODIFIED FOR APKTOOL 2.5.0 #
+
 # patch-apk - App Bundle/Split APK Aware Patcher for Objection #
 An APK patcher, for use with [objection](https://github.com/sensepost/objection), that supports Android app bundles/split APKs. It automates the following:
 
