@@ -1,4 +1,8 @@
-# MODIFIED FOR APKTOOL 2.5.0 #
+# :warning: Active fork for NickstaDB/patch-apk
+
+As the original projects has been set to read-only, I've created an active fork which combines most interesting modifications. If you identify any issues, please open a ticket.
+
+Original credit goes to @NickstaDB and significant modifications were made by myself and @jseigelis
 
 # patch-apk - App Bundle/Split APK Aware Patcher for Objection #
 An APK patcher, for use with [objection](https://github.com/sensepost/objection), that supports Android app bundles/split APKs. It automates the following:
@@ -12,6 +16,14 @@ An APK patcher, for use with [objection](https://github.com/sensepost/objection)
 6. Installing the patched app to the device, ready for use with objection.
 
 ### Changelog ###
+
+* **22nd February 2022:** Took over project and added various features:
+  * Merged modifications from @jseigelis's fork
+  * Removed support for outdated objection versions
+  * Fixed bug for `--debug-output`
+  * Added `--verbose` flag
+  * Fixed bug with objection AndroidManifest extraction
+  * Updated output format
 
 * **29th April 2021:** Implemented a fix for an issue with `apktool` where the handling of some resource XML elements changed and the `--use-aapt2` flag is required ([https://github.com/iBotPeaches/Apktool/issues/2462](https://github.com/iBotPeaches/Apktool/issues/2462)).
 * **28th April 2021:** Fixed a bug with `objection` version detection when the `objection version` command output an update notice.
