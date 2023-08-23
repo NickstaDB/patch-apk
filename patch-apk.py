@@ -8,10 +8,9 @@ import sys
 import tempfile
 import xml.etree.ElementTree
 import re
-from progress.bar import Bar
-from termcolor import colored
+from progress.bar import Bar # pip3 install progress
+from termcolor import colored # pip3 install termcolor
 
-SUPPORTED_VERSION = "2.6.1"
 NULL_DECODED_DRAWABLE_COLOR = "#000000ff"
 
 ####################
@@ -21,13 +20,12 @@ def main():
     # Grab argz
     args = getArgs()
 
-    # Warn for unexpected version
-    apktoolVersion = getApktoolVersion()
-    if apktoolVersion != pkg_resources.parse_version(SUPPORTED_VERSION):
-        warningPrint("WARNING: currently installed apktool version " + str(apktoolVersion) + " is not the same as what this version of this script is developed for (" + SUPPORTED_VERSION + "), you may suffer from build failures, bugs, and obsolete patches")
-
     # Check that dependencies are available
     checkDependencies(args.extract_only)
+
+    # Warn for unexpected version
+    apktoolVersion = getApktoolVersion()
+    print(f"Using apktool v{apktoolVersion}")
     
     # Verify the package name and ensure it's installed (also supports partial package names)
     pkgname = verifyPackageName(args.pkgname)
