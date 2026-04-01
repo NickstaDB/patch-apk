@@ -154,9 +154,8 @@ def getObjectionVersion():
 def getApktoolVersion():
 	output = ""
 	if os.name == "nt":
-		proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-		proc.communicate(b"\r\n")
-		output = proc.stdout.decode("utf-8").strip()
+		proc = subprocess.run(["apktool.bat", "--version"], input=b"\r\n", capture_output=True)
+		output = proc.stdout.decode("utf-8").split("\r\n")[0].strip();
 	else:
 		proc = subprocess.run(["apktool", "-version"], stdout=subprocess.PIPE)
 		output = proc.stdout.decode("utf-8").strip()
